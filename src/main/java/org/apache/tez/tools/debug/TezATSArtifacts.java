@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.tez.tools.debug.Params.Param;
@@ -36,18 +37,18 @@ public class TezATSArtifacts implements ArtifactSource {
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
-    // TODO(hjp): Extract from configuration.
-    String atsHost = "localhost";
-    int atsPort = 8188;
+    String atsAddress = null;
     String atsPathPrefix = "/ws/v1/timeline/";
+    if (YarnConfiguration.useHttps(conf)) {
+      atsAddress = "http://" + conf.get(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS,
+        YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_ADDRESS) + atsPathPrefix;
+    } else {
+      atsAddress = "https://" + conf.get(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS,
+          YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS) + atsPathPrefix;
+    }
     String dagId = params.getParam(Param.TEZ_DAG_ID);
-
-    URIBuilder builder = new URIBuilder();
-    builder.setScheme("http");
-    builder.setHost(atsHost);
-    builder.setPort(atsPort);
-
     try {
+      URIBuilder builder = new URIBuilder(atsAddress);
       builder.setPath(atsPathPrefix + "TEZ_DAG_ID/" + dagId);
       String dagUri = builder.build().toString();
 

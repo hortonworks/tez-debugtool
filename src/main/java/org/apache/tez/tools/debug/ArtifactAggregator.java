@@ -4,19 +4,22 @@ import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -81,11 +84,14 @@ public class ArtifactAggregator implements Closeable {
 
   @Override
   public void close() throws IOException {
-    if (zipfs != null) {
-      zipfs.close();
-    }
-    if (httpClient != null) {
-      httpClient.close();
+    try {
+      if (zipfs != null) {
+        zipfs.close();
+      }
+    } finally {
+      if (httpClient != null) {
+        httpClient.close();
+      }
     }
   }
 
@@ -104,19 +110,27 @@ public class ArtifactAggregator implements Closeable {
 
   private boolean writeErrors(Map<String, Exception> errors) {
     if (!errors.isEmpty()) {
-      System.out.println("Writing errors.");
       Path path = zipfs.getPath("ERRORS");
       OutputStream stream = null;
       try {
-        Files.newOutputStream(path);
+        stream = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW,
+            StandardOpenOption.WRITE);
+        Map<String, String> formattedError = new HashMap<>();
+        for (Entry<String, Exception> entry : errors.entrySet()) {
+          StringWriter writer = new StringWriter();
+          entry.getValue().printStackTrace(new PrintWriter(writer));
+          formattedError.put(entry.getKey(), writer.toString());
+        }
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setSerializationInclusion(Include.NON_NULL);
-        objectMapper.writeValue(stream, errors);
+        objectMapper.writeValue(stream, formattedError);
       } catch (IOException e) {
         // LOG error here?
+        e.printStackTrace();
         return false;
       } finally {
-        IOUtils.closeQuietly(stream);
+        // We should not close a stream from ZipFileSystem, I have no clue why.
+        // IOUtils.closeQuietly(stream);
       }
     }
     return true;
