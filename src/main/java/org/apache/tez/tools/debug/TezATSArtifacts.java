@@ -5,24 +5,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.tez.tools.debug.Params.Param;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Inject;
 
 public class TezATSArtifacts implements ArtifactSource {
 
-  private final Configuration conf;
-  private final HttpClient httpClient;
+  private final ATSArtifactHelper helper;
 
   @Inject
-  public TezATSArtifacts(Configuration conf, HttpClient httpClient) {
-    this.conf = conf;
-    this.httpClient = httpClient;
+  public TezATSArtifacts(ATSArtifactHelper helper) {
+    this.helper = helper;
   }
 
   @Override
@@ -31,47 +25,16 @@ public class TezATSArtifacts implements ArtifactSource {
   }
 
   @Override
-  public Set<Param> getProvidedParams() {
-    return Collections.emptySet();
-  }
-
-  @Override
   public List<Artifact> getArtifacts(Params params) {
-    String atsAddress = null;
-    String atsPathPrefix = "/ws/v1/timeline/";
-    if (YarnConfiguration.useHttps(conf)) {
-      atsAddress = "http://" + conf.get(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_ADDRESS,
-        YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_ADDRESS) + atsPathPrefix;
-    } else {
-      atsAddress = "https://" + conf.get(YarnConfiguration.TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS,
-          YarnConfiguration.DEFAULT_TIMELINE_SERVICE_WEBAPP_HTTPS_ADDRESS) + atsPathPrefix;
-    }
     String dagId = params.getParam(Param.TEZ_DAG_ID);
     try {
-      URIBuilder builder = new URIBuilder(atsAddress);
-      builder.setPath(atsPathPrefix + "TEZ_DAG_ID/" + dagId);
-      String dagUri = builder.build().toString();
-
-      builder.setPath(atsPathPrefix + "TEZ_DAG_EXTRA_INFO/" + dagId);
-      String dagExtraInfoUri = builder.build().toString();
-
-      builder.setParameter("primaryFilter", "TEZ_DAG_ID:" + dagId);
-
-      builder.setPath(atsPathPrefix + "TEZ_VERTEX_ID/");
-      String vertexUri = builder.build().toString();
-
-      builder.setPath(atsPathPrefix + "TEZ_TASK_ID/");
-      String taskUri = builder.build().toString();
-
-      builder.setPath(atsPathPrefix + "TEZ_TASK_ATTEMPT_ID/");
-      String taskAttemptUri = builder.build().toString();
-
-      return Lists.<Artifact>newArrayList(
-          new HttpArtifact(httpClient, "TEZ_DAG", dagUri),
-          new HttpArtifact(httpClient, "TEZ_DAG_EXTRAINFO", dagExtraInfoUri),
-          new HttpArtifact(httpClient, "TEZ_VERTEX", vertexUri),
-          new HttpArtifact(httpClient, "TEZ_TASK", taskUri),
-          new HttpArtifact(httpClient, "TEZ_TASK_ATTEMPT", taskAttemptUri));
+      return ImmutableList.of(
+          helper.getEntityArtifact("TEZ_DAG", "TEZ_DAG_ID", dagId),
+          helper.getEntityArtifact("TEZ_DAG_EXTRAINFO", "TEZ_DAG_EXTRA_INFO", dagId),
+          helper.getChildEntityArtifact("TEZ_VERTEX", "TEZ_VERTEX_ID", "TEZ_DAG_ID", dagId),
+          helper.getChildEntityArtifact("TEZ_TASK", "TEZ_TASK_ID", "TEZ_DAG_ID", dagId),
+          helper.getChildEntityArtifact("TEZ_TASK_ATTEMPT", "TEZ_TASK_ATTEMPT_ID", "TEZ_DAG_ID",
+              dagId));
     } catch (URISyntaxException e) {
       // This should go back to user.
       e.printStackTrace();

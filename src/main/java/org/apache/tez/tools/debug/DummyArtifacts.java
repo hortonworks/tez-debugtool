@@ -14,11 +14,6 @@ public class DummyArtifacts implements ArtifactSource {
   }
 
   @Override
-  public Set<Param> getProvidedParams() {
-    return Collections.emptySet();
-  }
-
-  @Override
   public List<Artifact> getArtifacts(Params params) {
     return Collections.emptyList();
   }

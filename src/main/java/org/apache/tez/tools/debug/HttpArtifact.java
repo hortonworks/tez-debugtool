@@ -28,6 +28,8 @@ public class HttpArtifact implements Artifact {
 
   @Override
   public void downloadInto(Path path) throws IOException {
+    // Try to use nio to transfer the streaming data from http into the outputstream of the path.
+    // This would use about 3 buffers in place of one.
     HttpGet httpGet = new HttpGet(url);
     HttpResponse response = client.execute(httpGet);
     InputStream entityStream = null;
@@ -43,6 +45,6 @@ public class HttpArtifact implements Artifact {
 
   @Override
   public String toString() {
-    return name + "[" + url + "]";
+    return "HttpArtifact[Name: " + name + ", URL: " + url + "]";
   }
 }

@@ -1,6 +1,5 @@
 package org.apache.tez.tools.debug;
 
-import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -28,12 +27,13 @@ import org.apache.tez.tools.debug.Params.Param;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
 
-public class ArtifactAggregator implements Closeable {
+public class ArtifactAggregator implements AutoCloseable {
   private final Configuration conf;
   private final Params params;
   private final CloseableHttpClient httpClient;
@@ -54,7 +54,8 @@ public class ArtifactAggregator implements Closeable {
         binder.bind(Params.class).toInstance(params);
       }
     });
-    this.zipfs = createZipFS(zipFilePath);
+    this.zipfs = FileSystems.newFileSystem(URI.create("jar:file:" + zipFilePath),
+        ImmutableMap.of("create", "true", "encoding", "UTF-8"));
     this.pendingSources = new ArrayList<>(sourceTypes.size());
     for (ArtifactSourceType sourceType : sourceTypes) {
       pendingSources.add(sourceType.getSource(injector));
@@ -136,28 +137,21 @@ public class ArtifactAggregator implements Closeable {
     return true;
   }
 
-  private FileSystem createZipFS(String zipFilePath) throws IOException {
-    Map<String, String> zip_properties = new HashMap<>();
-    zip_properties.put("create", "true");
-    zip_properties.put("encoding", "UTF-8");
-    URI zip_disk = URI.create("jar:file:" + zipFilePath);
-    FileSystem zipfs = FileSystems.newFileSystem(zip_disk, zip_properties);
-    return zipfs;
-  }
-
-  private static void usage() {
+  private static void usage(String msg) {
+    if (msg != null) {
+      System.err.println(msg);
+    }
     System.err.println(
         "Usage: download_aggregate <--dagId dagId | --queryId queryId> [--outputFile outputFile]");
     System.exit(1);
   }
 
-  // dag_1494824006032_0001_1
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) {
     String dagId = null;
     String queryId = null;
     File outputFile = null;
     if (args.length % 2 != 0) {
-      usage();
+      usage("Got extra arguments.");
     }
     for (int i = 0; i < args.length; i += 2) {
       if (args[i].equals("--dagId")) {
@@ -167,11 +161,11 @@ public class ArtifactAggregator implements Closeable {
       } else if (args[i].equals("--outputFile")) {
         outputFile = new File(args[i + 1]);
       } else {
-        usage();
+        usage("Unknown option: " + args[i]);
       }
     }
     if ((dagId == null && queryId == null) || (dagId != null && queryId != null)) {
-      usage();
+      usage("Specify either dagId or queryId.");
     }
     Params params = new Params();
     if (dagId != null) {
@@ -184,15 +178,19 @@ public class ArtifactAggregator implements Closeable {
       outputFile = new File((dagId == null ? queryId : dagId) + ".zip");
     }
     if (outputFile.exists()) {
-      System.err.println("File already exists: " + outputFile.getAbsolutePath());
+      usage("File already exists: " + outputFile.getAbsolutePath());
+    }
+
+    // Add command line option to download only a subset of sources.
+    List<ArtifactSourceType> sourceTypes = Arrays.asList(ArtifactSourceType.values());
+
+    try (ArtifactAggregator aggregator = new ArtifactAggregator(new Configuration(), params,
+        outputFile.getAbsolutePath(), sourceTypes)) {
+      aggregator.aggregate();
+    } catch (Exception e) {
+      System.err.println("Error occured while trying to create aggregator: " + e.getMessage());
+      e.printStackTrace();
       System.exit(1);
     }
-    Configuration conf = new Configuration();
-    // Add option to download only a subset of sources.
-    List<ArtifactSourceType> sourceTypes = Arrays.asList(ArtifactSourceType.values());
-    ArtifactAggregator aggregator = new ArtifactAggregator(
-        conf, params, outputFile.getAbsolutePath(), sourceTypes);
-    aggregator.aggregate();
-    aggregator.close();
   }
 }
