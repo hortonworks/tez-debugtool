@@ -1,5 +1,6 @@
 package org.apache.tez.tools.debug;
 
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -16,5 +17,9 @@ public class DummyArtifacts implements ArtifactSource {
   @Override
   public List<Artifact> getArtifacts(Params params) {
     return Collections.emptyList();
+  }
+
+  @Override
+  public void updateParams(Params param, Artifact artifact, Path path) {
   }
 }

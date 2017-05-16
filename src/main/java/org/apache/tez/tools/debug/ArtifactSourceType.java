@@ -12,6 +12,7 @@ public enum ArtifactSourceType {
   LLAP_DEAMON_STACK(DummyArtifacts.class),
   TEZ_CONFIG(DummyArtifacts.class),
   TEZ_HIVE2_CONFIG(DummyArtifacts.class),
+  HIVE_ATS(HiveATSArtifacts.class),
   HIVE_CONFIG(DummyArtifacts.class),
   HIVE2_CONFIG(DummyArtifacts.class),
   HADOOP_CONFIG(DummyArtifacts.class),

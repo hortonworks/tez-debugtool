@@ -40,6 +40,7 @@ public class ArtifactAggregator implements AutoCloseable {
   private final Injector injector;
   private final FileSystem zipfs;
   private final List<ArtifactSource> pendingSources;
+  private final Map<Artifact, ArtifactSource> artifactSource;
 
   public ArtifactAggregator(Configuration conf_, Params params_, String zipFilePath,
       List<ArtifactSourceType> sourceTypes) throws IOException {
@@ -60,6 +61,7 @@ public class ArtifactAggregator implements AutoCloseable {
     for (ArtifactSourceType sourceType : sourceTypes) {
       pendingSources.add(sourceType.getSource(injector));
     }
+    this.artifactSource = new HashMap<>();
   }
 
   public void aggregate() {
@@ -75,6 +77,7 @@ public class ArtifactAggregator implements AutoCloseable {
         Path path = zipfs.getPath(artifact.getName());
         try {
           artifact.downloadInto(path);
+          artifactSource.get(artifact).updateParams(params, artifact, path);
         } catch (IOException e) {
           errors.put(artifact.getName(), e);
         }
@@ -102,7 +105,10 @@ public class ArtifactAggregator implements AutoCloseable {
     while (iter.hasNext()) {
       ArtifactSource source = iter.next();
       if (params.containsAll(source.getRequiredParams())) {
-        artifacts.addAll(source.getArtifacts(params));
+        for (Artifact artifact : source.getArtifacts(params)) {
+          artifacts.add(artifact);
+          artifactSource.put(artifact, source);
+        }
         iter.remove();
       }
     }
