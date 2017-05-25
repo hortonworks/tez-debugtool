@@ -1,15 +1,16 @@
-package org.apache.tez.tools.debug;
+package org.apache.tez.tools.debug.source;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.tez.tools.debug.Params.Param;
+import org.apache.tez.tools.debug.ATSArtifactHelper;
+import org.apache.tez.tools.debug.framework.Artifact;
+import org.apache.tez.tools.debug.framework.ArtifactSource;
+import org.apache.tez.tools.debug.framework.Params;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,13 +27,8 @@ public class TezATSArtifacts implements ArtifactSource {
   }
 
   @Override
-  public Set<Param> getRequiredParams() {
-    return Collections.singleton(Param.TEZ_DAG_ID);
-  }
-
-  @Override
   public List<Artifact> getArtifacts(Params params) {
-    String dagId = params.getParam(Param.TEZ_DAG_ID);
+    String dagId = params.getTezDagId();
     try {
       return ImmutableList.of(
           helper.getEntityArtifact("TEZ_DAG", "TEZ_DAG_ID", dagId),
@@ -49,9 +45,8 @@ public class TezATSArtifacts implements ArtifactSource {
   }
 
   @Override
-  public void updateParams(Params param, Artifact artifact, Path path) throws IOException {
-    if (param.getParam(Param.HIVE_QUERY_ID) != null &&
-        param.getParam(Param.TEZ_APP_ID) != null) {
+  public void updateParams(Params params, Artifact artifact, Path path) throws IOException {
+    if (params.getHiveQueryId() != null && params.getTezDagId() != null) {
       return;
     }
     if (artifact.getName().equals("TEZ_DAG")) {
@@ -65,22 +60,27 @@ public class TezATSArtifacts implements ArtifactSource {
         return;
       }
       // Get and update dag id/hive query id.
-      if (param.getParam(Param.TEZ_APP_ID) == null) {
+      if (params.getTezAmAppId() == null) {
         JsonNode appId = other.get("applicationId");
         if (appId != null && appId.isTextual()) {
-          param.setParam(Param.TEZ_APP_ID, appId.asText());
+          params.setTezAmAppId(appId.asText());
         }
       }
-      if (param.getParam(Param.HIVE_QUERY_ID) == null) {
+      if (params.getHiveQueryId() == null) {
         JsonNode callerType = other.get("callerType");
         if (callerType != null && callerType.isTextual() &&
             callerType.asText().equals("HIVE_QUERY_ID")) {
           JsonNode callerId = other.get("callerId");
           if (callerId != null && callerId.isTextual()) {
-            param.setParam(Param.HIVE_QUERY_ID, callerId.asText());
+            params.setHiveQueryId(callerId.asText());
           }
         }
       }
     }
+  }
+
+  @Override
+  public boolean hasRequiredParams(Params params) {
+    return params.getTezDagId() != null;
   }
 }

@@ -1,4 +1,4 @@
-package org.apache.tez.tools.debug;
+package org.apache.tez.tools.debug.framework;
 
 import java.io.IOException;
 import java.nio.file.Path;

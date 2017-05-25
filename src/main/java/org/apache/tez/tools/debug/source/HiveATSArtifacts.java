@@ -1,15 +1,16 @@
-package org.apache.tez.tools.debug;
+package org.apache.tez.tools.debug.source;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
-import org.apache.tez.tools.debug.Params.Param;
+import org.apache.tez.tools.debug.ATSArtifactHelper;
+import org.apache.tez.tools.debug.framework.Artifact;
+import org.apache.tez.tools.debug.framework.ArtifactSource;
+import org.apache.tez.tools.debug.framework.Params;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -26,15 +27,10 @@ public class HiveATSArtifacts implements ArtifactSource {
   }
 
   @Override
-  public Set<Param> getRequiredParams() {
-    return Collections.singleton(Param.HIVE_QUERY_ID);
-  }
-
-  @Override
   public List<Artifact> getArtifacts(Params params) {
     try {
       return ImmutableList.of(helper.getEntityArtifact("HIVE_QUERY", "HIVE_QUERY_ID",
-          params.getParam(Param.HIVE_QUERY_ID)));
+          params.getHiveQueryId()));
     } catch (URISyntaxException e) {
       e.printStackTrace();
       return null;
@@ -42,9 +38,8 @@ public class HiveATSArtifacts implements ArtifactSource {
   }
 
   @Override
-  public void updateParams(Params param, Artifact artifact, Path path) throws IOException {
-    if (param.getParam(Param.TEZ_DAG_ID) != null &&
-        param.getParam(Param.TEZ_APP_ID) != null) {
+  public void updateParams(Params params, Artifact artifact, Path path) throws IOException {
+    if (params.getTezDagId() != null && params.getTezAmAppId() != null) {
       return;
     }
     if (artifact.getName().equals("HIVE_QUERY")) {
@@ -58,18 +53,23 @@ public class HiveATSArtifacts implements ArtifactSource {
         return;
       }
       // Get and update dag id/hive query id.
-      if (param.getParam(Param.TEZ_APP_ID) == null) {
+      if (params.getTezAmAppId() == null) {
         JsonNode appId = other.get("APP_ID");
         if (appId != null && appId.isTextual()) {
-          param.setParam(Param.TEZ_APP_ID, appId.asText());
+          params.setTezAmAppId(appId.asText());
         }
       }
-      if (param.getParam(Param.TEZ_DAG_ID) == null) {
+      if (params.getTezDagId() == null) {
         JsonNode dagId = other.get("DAG_ID");
         if (dagId != null && dagId.isTextual()) {
-          param.setParam(Param.TEZ_DAG_ID, dagId.asText());
+          params.setTezDagId(dagId.asText());
         }
       }
     }
+  }
+
+  @Override
+  public boolean hasRequiredParams(Params params) {
+    return params.getHiveQueryId() != null;
   }
 }

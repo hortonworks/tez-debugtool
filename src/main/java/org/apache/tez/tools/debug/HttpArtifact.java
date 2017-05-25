@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.tez.tools.debug.framework.Artifact;
 
 public class HttpArtifact implements Artifact {
 

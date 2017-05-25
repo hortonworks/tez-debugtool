@@ -1,6 +1,5 @@
-package org.apache.tez.tools.debug;
+package org.apache.tez.tools.debug.framework;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -12,18 +11,19 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
-import org.apache.tez.tools.debug.Params.Param;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +35,7 @@ import com.google.inject.Module;
 
 public class ArtifactAggregator implements AutoCloseable {
   private final Configuration conf;
+  private final ExecutorService service;
   private final Params params;
   private final CloseableHttpClient httpClient;
   private final Injector injector;
@@ -42,10 +43,11 @@ public class ArtifactAggregator implements AutoCloseable {
   private final List<ArtifactSource> pendingSources;
   private final Map<Artifact, ArtifactSource> artifactSource;
 
-  public ArtifactAggregator(Configuration conf_, Params params_, String zipFilePath,
-      List<ArtifactSourceType> sourceTypes) throws IOException {
+  public ArtifactAggregator(Configuration conf_, ExecutorService service, Params params_,
+      String zipFilePath, List<ArtifactSourceType> sourceTypes) throws IOException {
     this.conf = conf_;
-    this.params = new Params(params_);
+    this.service = service;
+    this.params = params_;
     this.httpClient = HttpClients.createDefault();
     this.injector = Guice.createInjector(new Module() {
       @Override
@@ -65,7 +67,7 @@ public class ArtifactAggregator implements AutoCloseable {
   }
 
   public void aggregate() {
-    Map<String, Exception> errors = new HashMap<>();
+    final Map<String, Exception> errors = new HashMap<>();
     while (!pendingSources.isEmpty()) {
       List<Artifact> artifacts = collectDownloadableArtifacts();
       if (artifacts.isEmpty() && !pendingSources.isEmpty()) {
@@ -73,13 +75,28 @@ public class ArtifactAggregator implements AutoCloseable {
         // Can be because dagId was given, queryId could not be found, etc ...
         break;
       }
-      for (Artifact artifact : artifacts) {
-        Path path = zipfs.getPath(artifact.getName());
+      List<Future<?>> futures = new ArrayList<>(artifacts.size());
+      for (final Artifact artifact : artifacts) {
+        final Path path = zipfs.getPath(artifact.getName());
+          futures.add(service.submit(new Runnable() {
+            public void run() {
+              try {
+                artifact.downloadInto(path);
+                artifactSource.get(artifact).updateParams(params, artifact, path);
+              } catch (IOException e) {
+                errors.put(artifact.getName(), e);
+              }
+            }
+          }));
+      }
+      for (Future<?> future : futures) {
         try {
-          artifact.downloadInto(path);
-          artifactSource.get(artifact).updateParams(params, artifact, path);
-        } catch (IOException e) {
-          errors.put(artifact.getName(), e);
+          future.get();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return;
+        } catch (ExecutionException e) {
+          // ignore, this should not happen.
         }
       }
     }
@@ -104,7 +121,7 @@ public class ArtifactAggregator implements AutoCloseable {
     Iterator<ArtifactSource> iter = pendingSources.iterator();
     while (iter.hasNext()) {
       ArtifactSource source = iter.next();
-      if (params.containsAll(source.getRequiredParams())) {
+      if (source.hasRequiredParams(params)) {
         for (Artifact artifact : source.getArtifacts(params)) {
           artifacts.add(artifact);
           artifactSource.put(artifact, source);
@@ -141,62 +158,5 @@ public class ArtifactAggregator implements AutoCloseable {
       }
     }
     return true;
-  }
-
-  private static void usage(String msg) {
-    if (msg != null) {
-      System.err.println(msg);
-    }
-    System.err.println(
-        "Usage: download_aggregate <--dagId dagId | --queryId queryId> [--outputFile outputFile]");
-    System.exit(1);
-  }
-
-  public static void main(String[] args) {
-    String dagId = null;
-    String queryId = null;
-    File outputFile = null;
-    if (args.length % 2 != 0) {
-      usage("Got extra arguments.");
-    }
-    for (int i = 0; i < args.length; i += 2) {
-      if (args[i].equals("--dagId")) {
-        dagId = args[i + 1];
-      } else if (args[i].equals("--queryId")) {
-        queryId = args[i + 1];
-      } else if (args[i].equals("--outputFile")) {
-        outputFile = new File(args[i + 1]);
-      } else {
-        usage("Unknown option: " + args[i]);
-      }
-    }
-    if ((dagId == null && queryId == null) || (dagId != null && queryId != null)) {
-      usage("Specify either dagId or queryId.");
-    }
-    Params params = new Params();
-    if (dagId != null) {
-      params.setParam(Param.TEZ_DAG_ID, dagId);
-    }
-    if (queryId != null) {
-      params.setParam(Param.HIVE_QUERY_ID, queryId);
-    }
-    if (outputFile == null) {
-      outputFile = new File((dagId == null ? queryId : dagId) + ".zip");
-    }
-    if (outputFile.exists()) {
-      usage("File already exists: " + outputFile.getAbsolutePath());
-    }
-
-    // Add command line option to download only a subset of sources.
-    List<ArtifactSourceType> sourceTypes = Arrays.asList(ArtifactSourceType.values());
-
-    try (ArtifactAggregator aggregator = new ArtifactAggregator(new Configuration(), params,
-        outputFile.getAbsolutePath(), sourceTypes)) {
-      aggregator.aggregate();
-    } catch (Exception e) {
-      System.err.println("Error occured while trying to create aggregator: " + e.getMessage());
-      e.printStackTrace();
-      System.exit(1);
-    }
   }
 }

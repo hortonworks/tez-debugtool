@@ -1,9 +1,14 @@
-package org.apache.tez.tools.debug;
+package org.apache.tez.tools.debug.framework;
+
+import org.apache.tez.tools.debug.source.DummyArtifacts;
+import org.apache.tez.tools.debug.source.HiveATSArtifacts;
+import org.apache.tez.tools.debug.source.TezATSArtifacts;
 
 import com.google.inject.Injector;
 
 public enum ArtifactSourceType {
   TEZ_ATS(TezATSArtifacts.class),
+  TEZ_AM_INFO(DummyArtifacts.class),
   TEZ_AM_LOG(DummyArtifacts.class),
   TEZ_AM_JMX(DummyArtifacts.class),
   TEZ_AM_STACK(DummyArtifacts.class),

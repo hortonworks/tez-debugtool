@@ -6,6 +6,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.utils.URIBuilder;
+import org.apache.tez.tools.debug.framework.Artifact;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
