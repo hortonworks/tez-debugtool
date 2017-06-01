@@ -8,6 +8,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import org.apache.tez.tools.debug.ATSArtifactHelper;
+import org.apache.tez.tools.debug.ATSArtifactHelper.ATSEvent;
+import org.apache.tez.tools.debug.ATSArtifactHelper.ATSLog;
 import org.apache.tez.tools.debug.framework.Artifact;
 import org.apache.tez.tools.debug.framework.ArtifactSource;
 import org.apache.tez.tools.debug.framework.Params;
@@ -20,10 +22,12 @@ import com.google.inject.Inject;
 public class HiveATSArtifacts implements ArtifactSource {
 
   private final ATSArtifactHelper helper;
+  private final ObjectMapper mapper;
 
   @Inject
-  public HiveATSArtifacts(ATSArtifactHelper helper) {
+  public HiveATSArtifacts(ATSArtifactHelper helper, ObjectMapper mapper) {
     this.helper = helper;
+    this.mapper = mapper;
   }
 
   @Override
@@ -44,7 +48,7 @@ public class HiveATSArtifacts implements ArtifactSource {
     }
     if (artifact.getName().equals("HIVE_QUERY")) {
       InputStream stream = Files.newInputStream(path);
-      JsonNode node = new ObjectMapper().readTree(stream);
+      JsonNode node = mapper.readTree(stream);
       if (node == null) {
         return;
       }
@@ -63,6 +67,16 @@ public class HiveATSArtifacts implements ArtifactSource {
         JsonNode dagId = other.get("DAG_ID");
         if (dagId != null && dagId.isTextual()) {
           params.setTezDagId(dagId.asText());
+        }
+      }
+      ATSLog log = mapper.treeToValue(node, ATSLog.class);
+      for (ATSEvent event : log.events) {
+        if (event.eventtype != null) {
+          if (event.eventtype.equals("QUERY_SUBMITTED")) {
+            params.updateStartTime(event.timestamp);
+          } else if (event.eventtype.equals("QUERY_COMPLETED")) {
+            params.updateEndTime(event.timestamp);
+          }
         }
       }
     }

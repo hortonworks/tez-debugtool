@@ -15,11 +15,13 @@ public class HttpArtifact implements Artifact {
   private final HttpClient client;
   private final String name;
   private final String url;
+  private final boolean isTemp;
 
-  public HttpArtifact(HttpClient client, String name, String url) {
+  public HttpArtifact(HttpClient client, String name, String url, boolean isTemp) {
     this.client = client;
     this.name = name;
     this.url = url;
+    this.isTemp = isTemp;
   }
 
   @Override
@@ -29,6 +31,7 @@ public class HttpArtifact implements Artifact {
 
   @Override
   public void downloadInto(Path path) throws IOException {
+    System.out.println("Downloading: " + url);
     // Try to use nio to transfer the streaming data from http into the outputstream of the path.
     // This would use about 3 buffers in place of one.
     // TODO(hjp) Add retry.
@@ -43,6 +46,11 @@ public class HttpArtifact implements Artifact {
         entityStream.close();
       }
     }
+  }
+
+  @Override
+  public boolean isTemp() {
+    return isTemp;
   }
 
   @Override

@@ -1,6 +1,7 @@
 package org.apache.tez.tools.debug;
 
 import java.net.URISyntaxException;
+import java.util.List;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -19,6 +20,19 @@ public class ATSArtifactHelper {
   private final HttpClient httpClient;
   private final String atsAddress;
 
+  public static class ATSEvent {
+    public long timestamp;
+    public String eventtype;
+    // ignored eventinfo
+  }
+  public static class ATSLog {
+    public List<ATSEvent> events;
+    public String entitytype;
+    public String entity;
+    public long starttime;
+    // ignored domain, relatedentities, primaryfilters, otherinfo.
+  }
+
   @Inject
   public ATSArtifactHelper(Configuration conf, HttpClient httpClient) {
     this.httpClient = httpClient;
@@ -36,7 +50,7 @@ public class ATSArtifactHelper {
     URIBuilder builder = new URIBuilder(atsAddress);
     builder.setPath(ATS_PATH_PREFIX + entityType + "/" + entityId);
     String url = builder.build().toString();
-    return new HttpArtifact(httpClient, name, url);
+    return new HttpArtifact(httpClient, name, url, false);
   }
 
   public Artifact getChildEntityArtifact(String name, String entityType, String rootEntityType,
@@ -45,6 +59,6 @@ public class ATSArtifactHelper {
     builder.setPath(ATS_PATH_PREFIX + entityType);
     builder.setParameter("primaryFilter", rootEntityType + ":" + rootEntityId);
     String url = builder.build().toString();
-    return new HttpArtifact(httpClient, name, url);
+    return new HttpArtifact(httpClient, name, url, false);
   }
 }

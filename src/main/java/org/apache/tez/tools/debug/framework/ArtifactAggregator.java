@@ -26,6 +26,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
@@ -49,12 +50,17 @@ public class ArtifactAggregator implements AutoCloseable {
     this.service = service;
     this.params = params_;
     this.httpClient = HttpClients.createDefault();
+    final ObjectMapper mapper = new ObjectMapper();
+    mapper.configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true);
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
     this.injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
         binder.bind(HttpClient.class).toInstance(httpClient);
         binder.bind(Configuration.class).toInstance(conf);
         binder.bind(Params.class).toInstance(params);
+        binder.bind(ObjectMapper.class).toInstance(mapper);
       }
     });
     this.zipfs = FileSystems.newFileSystem(URI.create("jar:file:" + zipFilePath),
@@ -77,18 +83,28 @@ public class ArtifactAggregator implements AutoCloseable {
       }
       List<Future<?>> futures = new ArrayList<>(artifacts.size());
       for (final Artifact artifact : artifacts) {
-        final Path path = zipfs.getPath(artifact.getName());
-          futures.add(service.submit(new Runnable() {
-            public void run() {
-              try {
-                artifact.downloadInto(path);
-                artifactSource.get(artifact).updateParams(params, artifact, path);
-              } catch (IOException e) {
-                errors.put(artifact.getName(), e);
+        final Path path = getArtifactPath(artifact.getName());
+        futures.add(service.submit(new Runnable() {
+          public void run() {
+            try {
+              artifact.downloadInto(path);
+              artifactSource.get(artifact).updateParams(params, artifact, path);
+            } catch (IOException e) {
+              errors.put(artifact.getName(), e);
+            } finally {
+              if (artifact.isTemp()) {
+                try {
+                  Files.delete(path);
+                } catch (IOException ignore) {
+                }
               }
             }
-          }));
+          }
+        }));
       }
+      // Its important that we finish all futures in this stage, there are some cases where
+      // one stage download data required for next one in multiple threads. And we should ensure
+      // all are finished before we start another phase.
       for (Future<?> future : futures) {
         try {
           future.get();
@@ -101,6 +117,19 @@ public class ArtifactAggregator implements AutoCloseable {
       }
     }
     writeErrors(errors);
+  }
+
+  private Path getArtifactPath(String artifactName) {
+    final Path path = zipfs.getPath("/", artifactName.split("/"));
+    Path parent = path.getParent();
+    if (parent != null && Files.notExists(parent)) {
+      try {
+        Files.createDirectories(parent);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+    return path;
   }
 
   @Override
