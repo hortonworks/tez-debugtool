@@ -1,7 +1,6 @@
 package org.apache.tez.tools.debug.source;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -17,9 +16,7 @@ import org.apache.tez.tools.debug.framework.Params.AppLogs;
 import com.fasterxml.jackson.annotation.JsonRootName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.google.inject.Singleton;
 
-@Singleton
 public class TezAMInfoArtifacts implements ArtifactSource {
 
   private final AMArtifactsHelper helper;
@@ -53,12 +50,13 @@ public class TezAMInfoArtifacts implements ArtifactSource {
       return;
     }
     if (artifact.getName().equals("TEZ_AM_INFO")) {
-      InputStream stream = Files.newInputStream(path);
-      AMInfo amInfo = mapper.readValue(stream, AMInfo.class);
+      AMInfo amInfo = mapper.readValue(Files.newInputStream(path), AMInfo.class);
       if (amInfo != null && amInfo.appAttempt != null) {
         AppLogs amLogs = params.getTezAmLogs();
         for (AppAttempt attempt: amInfo.appAttempt) {
-          amLogs.addContainer(attempt.nodeId, attempt.containerId);
+          if (params.shouldIncludeArtifact(attempt.startTime, attempt.finishedTime)) {
+            amLogs.addContainer(attempt.nodeId, attempt.containerId);
+          }
         }
         amLogs.finishContainers();
       }

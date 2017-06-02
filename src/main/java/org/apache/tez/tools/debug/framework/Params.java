@@ -8,8 +8,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.tez.tools.debug.AMArtifactsHelper;
 
-import com.fasterxml.jackson.annotation.JsonRootName;
-
 /**
  * This class will be access from multiple threads ensure that its thread safe.
  */
@@ -24,8 +22,9 @@ public class Params {
   // Hive information.
   private String hiveQueryId;
 
-  private long startTime;
-  private long endTime;
+  // Start and End time of query/dag.
+  private long startTime = 0;
+  private long endTime = Long.MAX_VALUE;
 
   public static class AppLogs {
     // Node -> Container -> log
@@ -39,7 +38,6 @@ public class Params {
       if (!appLogs.containsKey(nodeId)) {
         appLogs.putIfAbsent(nodeId, new ConcurrentHashMap<String, List<ContainerLogInfo>>());
       }
-      System.out.println("Adding: " + nodeId + ": " + containerId);
       appLogs.get(nodeId).put(containerId, logs);
     }
 
@@ -83,7 +81,6 @@ public class Params {
         for (Entry<String, List<ContainerLogInfo>> e : entry.getValue().entrySet()) {
           String containerId = e.getKey();
           for (ContainerLogInfo log: e.getValue()) {
-            System.out.println("Request log: " + log.fileName);
             artifacts.add(helper.getLogArtifact(name + "/" + containerId + "/" + log.fileName,
                 containerId, log.fileName, nodeId));
           }
@@ -108,7 +105,6 @@ public class Params {
     public String lastModifiedTime;
   }
 
-  @JsonRootName("containerLogsInfo")
   public static class ContainerLogsInfo {
     public List<ContainerLogInfo> containerLogInfo;
     public String containerId;
@@ -163,8 +159,17 @@ public class Params {
   }
 
   public void updateEndTime(long endTime) {
-    if (this.endTime == 0 || endTime > this.endTime) {
+    if (this.endTime == Long.MAX_VALUE || endTime > this.endTime) {
       this.endTime = endTime;
     }
+  }
+
+  public boolean shouldIncludeArtifact(long startTime, long endTime) {
+    if (endTime == 0) {
+      endTime = Long.MAX_VALUE;
+    }
+    // overlap is true if one of them started when other was running.
+    return (this.startTime <= startTime && startTime <= this.endTime) ||
+        (startTime <= this.startTime && this.startTime <= endTime);
   }
 }
