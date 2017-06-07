@@ -8,9 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.tez.tools.debug.AMArtifactsHelper;
 
-/**
- * This class will be access from multiple threads ensure that its thread safe.
- */
+// This class will be access from multiple threads ensure that its thread safe.
 public class Params {
   // Tez information.
   private String tezDagId;
@@ -88,15 +86,6 @@ public class Params {
       }
       return artifacts;
     }
-  }
-
-  public static class AppAttempt {
-    public int id;
-    public long startTime;
-    public long finishedTime;
-    public String containerId;
-    public String nodeId;
-    public String appAttemptId;
   }
 
   public static class ContainerLogInfo {

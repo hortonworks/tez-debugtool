@@ -70,7 +70,7 @@ public class TezATSArtifacts implements ArtifactSource {
   private void extractTaskContainers(Params params, Path path)
       throws IOException, JsonProcessingException {
     AppLogs appLogs = params.getTezAppLogs();
-    if (appLogs.isFinishedLogs()) {
+    if (appLogs.isFinishedContainers()) {
       return;
     }
     InputStream stream = Files.newInputStream(path);

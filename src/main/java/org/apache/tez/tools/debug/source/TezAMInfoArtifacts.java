@@ -10,7 +10,6 @@ import org.apache.tez.tools.debug.AMArtifactsHelper;
 import org.apache.tez.tools.debug.framework.Artifact;
 import org.apache.tez.tools.debug.framework.ArtifactSource;
 import org.apache.tez.tools.debug.framework.Params;
-import org.apache.tez.tools.debug.framework.Params.AppAttempt;
 import org.apache.tez.tools.debug.framework.Params.AppLogs;
 
 import com.fasterxml.jackson.annotation.JsonRootName;
@@ -37,6 +36,15 @@ public class TezAMInfoArtifacts implements ArtifactSource {
   public List<Artifact> getArtifacts(Params params) {
     return Collections.singletonList(
         helper.getAMInfoArtifact("TEZ_AM_INFO", params.getTezAmAppId()));
+  }
+
+  public static class AppAttempt {
+    public int id;
+    public long startTime;
+    public long finishedTime;
+    public String containerId;
+    public String nodeId;
+    public String appAttemptId;
   }
 
   @JsonRootName("appAttempts")

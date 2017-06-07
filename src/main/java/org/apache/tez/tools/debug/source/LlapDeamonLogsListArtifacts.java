@@ -58,6 +58,9 @@ public class LlapDeamonLogsListArtifacts implements ArtifactSource {
     }
   }
 
+  private static Pattern ignoredFiles = Pattern.compile("(output-\\d+\\.txt)|(errors-\\d+\\.txt)|" +
+      "(command-\\d+\\.json)|(status_command_std.*\\.txt)|(slider-agent\\.out)|(shell\\.out)"
+      );
   private void filterLogs(List<ContainerLogInfo> containerLogInfo, Params params) {
     String hiveQueryId = params.getHiveQueryId();
     Iterator<ContainerLogInfo> iter = containerLogInfo.iterator();
@@ -80,6 +83,8 @@ public class LlapDeamonLogsListArtifacts implements ArtifactSource {
         if (startTime > 0 && !params.shouldIncludeArtifact(startTime, endTime)) {
           iter.remove();
         }
+      } else if (ignoredFiles.matcher(fileName).matches()) {
+        iter.remove();
       }
     }
   }
