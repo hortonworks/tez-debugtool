@@ -4,18 +4,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.tez.tools.debug.AMArtifactsHelper;
 
-// This class will be access from multiple threads ensure that its thread safe.
 public class Params {
   // Tez information.
   private String tezDagId;
   private String tezAmAppId;
 
   private final AppLogs tezAmLogs = new AppLogs();
-  private final AppLogs tezAppLogs = new AppLogs();
+  private final AppLogs tezTaskLogs = new AppLogs();
+
+  // Slider AM info.
+  private String sliderAppId;
+  private final AppLogs sliderAmLogs = new AppLogs();
+  private Set<String> sliderInstanceUrls;
 
   // Hive information.
   private String hiveQueryId;
@@ -65,7 +70,8 @@ public class Params {
           appLogs.entrySet()) {
         String nodeId = entry.getKey();
         for (String containerId : entry.getValue().keySet()) {
-          artifacts.add(helper.getLogListArtifact(name + "/" + containerId, containerId, nodeId));
+          artifacts.add(helper.getLogListArtifact(name + "/" + containerId + ".logs.json",
+              containerId, nodeId));
         }
       }
       return artifacts;
@@ -121,8 +127,28 @@ public class Params {
     return tezAmLogs;
   }
 
-  public AppLogs getTezAppLogs() {
-    return tezAppLogs;
+  public AppLogs getTezTaskLogs() {
+    return tezTaskLogs;
+  }
+
+  public String getSliderAppId() {
+    return sliderAppId;
+  }
+
+  public void setSliderAppId(String sliderAppId) {
+    this.sliderAppId = sliderAppId;
+  }
+
+  public AppLogs getSliderAmLogs() {
+    return sliderAmLogs;
+  }
+
+  public Set<String> getSliderInstanceUrls() {
+    return sliderInstanceUrls;
+  }
+
+  public void setSliderInstanceUrls(Set<String> sliderInstanceUrls) {
+    this.sliderInstanceUrls = sliderInstanceUrls;
   }
 
   public String getHiveQueryId() {

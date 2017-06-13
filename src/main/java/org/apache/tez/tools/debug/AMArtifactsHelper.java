@@ -1,10 +1,21 @@
 package org.apache.tez.tools.debug;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.http.client.HttpClient;
 import org.apache.tez.tools.debug.framework.Artifact;
+import org.apache.tez.tools.debug.framework.Params.ContainerLogsInfo;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.inject.Inject;
 
 public class AMArtifactsHelper {
@@ -42,7 +53,7 @@ public class AMArtifactsHelper {
     if (nodeId != null) {
       logsListUrl += "?nm.id=" + nodeId;
     }
-    return new HttpArtifact(httpClient, name, logsListUrl, true);
+    return new HttpArtifact(httpClient, name, logsListUrl, false);
   }
 
   public Artifact getLogArtifact(String name, String containerId, String logFile, String nodeId) {
@@ -51,5 +62,23 @@ public class AMArtifactsHelper {
       logUrl += "?nm.id=" + nodeId;
     }
     return new HttpArtifact(httpClient, name, logUrl, false);
+  }
+
+  public List<ContainerLogsInfo> parseContainerLogs(Path path)
+      throws IOException {
+    TypeReference<List<ContainerLogsInfo>> typeRef = new TypeReference<List<ContainerLogsInfo>>(){};
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true);
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+      ObjectReader reader = mapper.reader(typeRef).withRootName("containerLogsInfo");
+      return reader.readValue(Files.newInputStream(path));
+    } catch (JsonProcessingException e) {
+      ObjectMapper mapper = new ObjectMapper();
+      mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+      mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+      return mapper.readValue(Files.newInputStream(path), typeRef);
+    }
   }
 }

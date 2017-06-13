@@ -44,12 +44,12 @@ public class TezATSArtifacts implements ArtifactSource {
     String dagId = params.getTezDagId();
     try {
       return ImmutableList.of(
-          helper.getEntityArtifact("TEZ_DAG", "TEZ_DAG_ID", dagId),
-          helper.getEntityArtifact("TEZ_DAG_EXTRAINFO", "TEZ_DAG_EXTRA_INFO", dagId),
-          helper.getChildEntityArtifact("TEZ_VERTEX", "TEZ_VERTEX_ID", "TEZ_DAG_ID", dagId),
-          helper.getChildEntityArtifact("TEZ_TASK", "TEZ_TASK_ID", "TEZ_DAG_ID", dagId),
-          helper.getChildEntityArtifact("TEZ_TASK_ATTEMPT", "TEZ_TASK_ATTEMPT_ID", "TEZ_DAG_ID",
-              dagId));
+          helper.getEntityArtifact("TEZ_ATS/DAG", "TEZ_DAG_ID", dagId),
+          helper.getEntityArtifact("TEZ_ATS/DAG_EXTRAINFO", "TEZ_DAG_EXTRA_INFO", dagId),
+          helper.getChildEntityArtifact("TEZ_ATS/VERTEX", "TEZ_VERTEX_ID", "TEZ_DAG_ID", dagId),
+          helper.getChildEntityArtifact("TEZ_ATS/TASK", "TEZ_TASK_ID", "TEZ_DAG_ID", dagId),
+          helper.getChildEntityArtifact("TEZ_ATS/TASK_ATTEMPT", "TEZ_TASK_ATTEMPT_ID",
+              "TEZ_DAG_ID", dagId));
     } catch (URISyntaxException e) {
       // This should go back to user.
       e.printStackTrace();
@@ -59,17 +59,17 @@ public class TezATSArtifacts implements ArtifactSource {
 
   @Override
   public void updateParams(Params params, Artifact artifact, Path path) throws IOException {
-    if (artifact.getName().equals("TEZ_DAG")) {
+    if (artifact.getName().equals("TEZ_ATS/DAG")) {
       extractDagData(params, path);
     }
-    if (artifact.getName().equals("TEZ_TASK_ATTEMPT")) {
+    if (artifact.getName().equals("TEZ_ATS/TASK_ATTEMPT")) {
       extractTaskContainers(params, path);
     }
   }
 
   private void extractTaskContainers(Params params, Path path)
       throws IOException, JsonProcessingException {
-    AppLogs appLogs = params.getTezAppLogs();
+    AppLogs appLogs = params.getTezTaskLogs();
     if (appLogs.isFinishedContainers()) {
       return;
     }

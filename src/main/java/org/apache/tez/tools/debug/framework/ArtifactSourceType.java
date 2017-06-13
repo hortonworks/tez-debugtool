@@ -4,6 +4,12 @@ import org.apache.tez.tools.debug.source.DummyArtifacts;
 import org.apache.tez.tools.debug.source.HiveATSArtifacts;
 import org.apache.tez.tools.debug.source.LlapDeamonLogsArtifacts;
 import org.apache.tez.tools.debug.source.LlapDeamonLogsListArtifacts;
+import org.apache.tez.tools.debug.source.SliderAMInfoArtifacts;
+import org.apache.tez.tools.debug.source.SliderAMLogsArtifacts;
+import org.apache.tez.tools.debug.source.SliderAMLogsListArtifacts;
+import org.apache.tez.tools.debug.source.SliderInstanceJmx;
+import org.apache.tez.tools.debug.source.SliderInstanceStack;
+import org.apache.tez.tools.debug.source.SliderStatusArtifacts;
 import org.apache.tez.tools.debug.source.TezAMInfoArtifacts;
 import org.apache.tez.tools.debug.source.TezAMLogsArtifacts;
 import org.apache.tez.tools.debug.source.TezAMLogsListArtifacts;
@@ -20,8 +26,12 @@ public enum ArtifactSourceType {
   TEZ_AM_STACK(DummyArtifacts.class),
   LLAP_DEAMON_LOGS_INFO(LlapDeamonLogsListArtifacts.class),
   LLAP_DEAMON_LOGS(LlapDeamonLogsArtifacts.class),
-  LLAP_DEAMON_JMX(DummyArtifacts.class),
-  LLAP_DEAMON_STACK(DummyArtifacts.class),
+  SLIDER_STATUS(SliderStatusArtifacts.class),
+  SLIDER_INSTANCE_JMX(SliderInstanceJmx.class),
+  SLIDER_INSTANCE_STACK(SliderInstanceStack.class),
+  SLIDER_AM_INFO(SliderAMInfoArtifacts.class),
+  SLIDER_AM_LOG_INFO(SliderAMLogsListArtifacts.class),
+  SLIDER_AM_LOGS(SliderAMLogsArtifacts.class),
   TEZ_CONFIG(DummyArtifacts.class),
   TEZ_HIVE2_CONFIG(DummyArtifacts.class),
   HIVE_ATS(HiveATSArtifacts.class),

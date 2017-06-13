@@ -26,7 +26,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
@@ -50,17 +49,12 @@ public class ArtifactAggregator implements AutoCloseable {
     this.service = service;
     this.params = params_;
     this.httpClient = HttpClients.createDefault();
-    final ObjectMapper mapper = new ObjectMapper();
-    mapper.configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true);
-    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
     this.injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
         binder.bind(HttpClient.class).toInstance(httpClient);
         binder.bind(Configuration.class).toInstance(conf);
         binder.bind(Params.class).toInstance(params);
-        binder.bind(ObjectMapper.class).toInstance(mapper);
       }
     });
     this.zipfs = FileSystems.newFileSystem(URI.create("jar:file:" + zipFilePath),

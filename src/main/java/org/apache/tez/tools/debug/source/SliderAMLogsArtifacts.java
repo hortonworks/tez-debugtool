@@ -11,23 +11,23 @@ import org.apache.tez.tools.debug.framework.Params;
 
 import com.google.inject.Inject;
 
-public class TezAMLogsArtifacts implements ArtifactSource {
+public class SliderAMLogsArtifacts implements ArtifactSource {
 
   private final AMArtifactsHelper helper;
 
   @Inject
-  public TezAMLogsArtifacts(AMArtifactsHelper helper) {
+  public SliderAMLogsArtifacts(AMArtifactsHelper helper) {
     this.helper = helper;
   }
 
   @Override
   public boolean hasRequiredParams(Params params) {
-    return params.getTezAmLogs().isFinishedLogs();
+    return params.getSliderAmLogs().isFinishedLogs();
   }
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
-    return params.getTezAmLogs().getLogArtifacts(helper, "TEZ_AM/LOGS");
+    return params.getSliderAmLogs().getLogArtifacts(helper, "SLIDER_AM/LOGS");
   }
 
   @Override

@@ -6,25 +6,25 @@ import org.apache.tez.tools.debug.framework.Params.AppLogs;
 
 import com.google.inject.Inject;
 
-public class TezAMInfoArtifacts extends AMInfoArtifacts {
+public class SliderAMInfoArtifacts extends AMInfoArtifacts {
 
   @Inject
-  public TezAMInfoArtifacts(AMArtifactsHelper helper) {
+  public SliderAMInfoArtifacts(AMArtifactsHelper helper) {
     super(helper);
   }
 
   @Override
   public String getArtifactName() {
-    return "TEZ_AM/INFO";
+    return "SLIDER_AM/INFO";
   }
 
   @Override
   public String getAmId(Params params) {
-    return params.getTezAmAppId();
+    return params.getSliderAppId();
   }
 
   @Override
   public AppLogs getAMAppLogs(Params params) {
-    return params.getTezAmLogs();
+    return params.getSliderAmLogs();
   }
 }

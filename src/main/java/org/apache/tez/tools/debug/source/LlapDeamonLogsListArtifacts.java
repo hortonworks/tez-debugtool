@@ -1,7 +1,6 @@
 package org.apache.tez.tools.debug.source;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Calendar;
 import java.util.Iterator;
@@ -16,61 +15,47 @@ import org.apache.tez.tools.debug.framework.Params;
 import org.apache.tez.tools.debug.framework.Params.ContainerLogInfo;
 import org.apache.tez.tools.debug.framework.Params.ContainerLogsInfo;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.inject.Inject;
 
 public class LlapDeamonLogsListArtifacts implements ArtifactSource {
 
   private final AMArtifactsHelper helper;
-  private final ObjectMapper mapper;
 
   @Inject
-  public LlapDeamonLogsListArtifacts(AMArtifactsHelper helper, ObjectMapper mapper) {
+  public LlapDeamonLogsListArtifacts(AMArtifactsHelper helper) {
     this.helper = helper;
-    this.mapper = mapper;
   }
 
   @Override
   public boolean hasRequiredParams(Params params) {
-    return params.getTezAppLogs().isFinishedContainers();
+    return params.getTezTaskLogs().isFinishedContainers();
   }
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
-    return params.getTezAppLogs().getLogListArtifacts(helper, "LLAP_APP");
+    return params.getTezTaskLogs().getLogListArtifacts(helper, "LLAP/LOGS");
   }
 
   @Override
   public void updateParams(Params params, Artifact artifact, Path path) throws IOException {
-    ObjectReader reader = mapper.reader(new TypeReference<List<ContainerLogsInfo>>() {})
-        .withRootName("containerLogsInfo");
-    List<ContainerLogsInfo> logsInfoList = reader.readValue(Files.newInputStream(path));
+    List<ContainerLogsInfo> logsInfoList = helper.parseContainerLogs(path);
     if (logsInfoList != null) {
       for (ContainerLogsInfo logsInfo : logsInfoList) {
         filterLogs(logsInfo.containerLogInfo, params);
-        params.getTezAppLogs().addLog(
+        params.getTezTaskLogs().addLog(
             logsInfo.nodeId, logsInfo.containerId, logsInfo.containerLogInfo);
       }
       // This is not correct, but we have no way to tell all the logs have downloaded
-      params.getTezAppLogs().finishLogs();
+      params.getTezTaskLogs().finishLogs();
     }
   }
 
-  private static Pattern ignoredFiles = Pattern.compile("(output-\\d+\\.txt)|(errors-\\d+\\.txt)|" +
-      "(command-\\d+\\.json)|(status_command_std.*\\.txt)|(slider-agent\\.out)|(shell\\.out)"
-      );
   private void filterLogs(List<ContainerLogInfo> containerLogInfo, Params params) {
     String hiveQueryId = params.getHiveQueryId();
     Iterator<ContainerLogInfo> iter = containerLogInfo.iterator();
     while (iter.hasNext()) {
       String fileName = iter.next().fileName;
-      if (fileName.startsWith("hive_")) {
-        if (!fileName.startsWith(hiveQueryId)) {
-          iter.remove();
-        }
-      } else if (fileName.startsWith("llap-daemon")) {
+      if (fileName.startsWith("llap-daemon")) {
         long startTime = getLlapLogsStartTime(fileName);
         // Hourly rotation.
         if (startTime > 0 && !params.shouldIncludeArtifact(startTime, startTime + 60 * 60 * 1000)) {
@@ -83,7 +68,7 @@ public class LlapDeamonLogsListArtifacts implements ArtifactSource {
         if (startTime > 0 && !params.shouldIncludeArtifact(startTime, endTime)) {
           iter.remove();
         }
-      } else if (ignoredFiles.matcher(fileName).matches()) {
+      } else if (!fileName.startsWith(hiveQueryId) && !fileName.startsWith("gc.log")) {
         iter.remove();
       }
     }

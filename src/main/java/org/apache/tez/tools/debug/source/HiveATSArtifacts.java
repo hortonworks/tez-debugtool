@@ -14,6 +14,7 @@ import org.apache.tez.tools.debug.framework.Artifact;
 import org.apache.tez.tools.debug.framework.ArtifactSource;
 import org.apache.tez.tools.debug.framework.Params;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
@@ -25,9 +26,11 @@ public class HiveATSArtifacts implements ArtifactSource {
   private final ObjectMapper mapper;
 
   @Inject
-  public HiveATSArtifacts(ATSArtifactHelper helper, ObjectMapper mapper) {
+  public HiveATSArtifacts(ATSArtifactHelper helper) {
     this.helper = helper;
-    this.mapper = mapper;
+    this.mapper = new ObjectMapper();
+    mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
   }
 
   @Override
@@ -43,9 +46,6 @@ public class HiveATSArtifacts implements ArtifactSource {
 
   @Override
   public void updateParams(Params params, Artifact artifact, Path path) throws IOException {
-    if (params.getTezDagId() != null && params.getTezAmAppId() != null) {
-      return;
-    }
     if (artifact.getName().equals("HIVE_QUERY")) {
       InputStream stream = Files.newInputStream(path);
       JsonNode node = mapper.readTree(stream);

@@ -22,12 +22,12 @@ public class LlapDeamonLogsArtifacts implements ArtifactSource {
 
   @Override
   public boolean hasRequiredParams(Params params) {
-    return params.getTezAppLogs().isFinishedLogs();
+    return params.getTezTaskLogs().isFinishedLogs();
   }
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
-    return params.getTezAppLogs().getLogArtifacts(helper, "LLAP_APP");
+    return params.getTezTaskLogs().getLogArtifacts(helper, "LLAP/LOGS");
   }
 
   @Override
