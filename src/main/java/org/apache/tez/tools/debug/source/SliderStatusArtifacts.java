@@ -28,7 +28,7 @@ public class SliderStatusArtifacts implements ArtifactSource {
 
   @Override
   public boolean hasRequiredParams(Params params) {
-    return true;
+    return params.getAppType() != null && params.getAppType().equals("LLAP");
   }
 
   @Override

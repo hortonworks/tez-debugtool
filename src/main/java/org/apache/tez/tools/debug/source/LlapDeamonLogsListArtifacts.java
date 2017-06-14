@@ -28,7 +28,8 @@ public class LlapDeamonLogsListArtifacts implements ArtifactSource {
 
   @Override
   public boolean hasRequiredParams(Params params) {
-    return params.getTezTaskLogs().isFinishedContainers();
+    return params.getAppType() != null && params.getAppType().equals("LLAP") &&
+        params.getTezTaskLogs().isFinishedContainers();
   }
 
   @Override
