@@ -14,6 +14,8 @@ import org.apache.tez.tools.debug.source.TezAMInfoArtifacts;
 import org.apache.tez.tools.debug.source.TezAMLogsArtifacts;
 import org.apache.tez.tools.debug.source.TezAMLogsListArtifacts;
 import org.apache.tez.tools.debug.source.TezATSArtifacts;
+import org.apache.tez.tools.debug.source.TezTasksLogsArtifacts;
+import org.apache.tez.tools.debug.source.TezTasksLogsListArtifacts;
 
 import com.google.inject.Injector;
 
@@ -24,8 +26,8 @@ public enum ArtifactSourceType {
   TEZ_AM_LOGS(TezAMLogsArtifacts.class),
   TEZ_AM_JMX(DummyArtifacts.class),
   TEZ_AM_STACK(DummyArtifacts.class),
-  TEZ_TASK_LOGS_INFO(DummyArtifacts.class),
-  TEZ_TASK_LOGS(DummyArtifacts.class),
+  TEZ_TASK_LOGS_INFO(TezTasksLogsListArtifacts.class),
+  TEZ_TASK_LOGS(TezTasksLogsArtifacts.class),
   LLAP_DEAMON_LOGS_INFO(LlapDeamonLogsListArtifacts.class),
   LLAP_DEAMON_LOGS(LlapDeamonLogsArtifacts.class),
   SLIDER_STATUS(SliderStatusArtifacts.class),

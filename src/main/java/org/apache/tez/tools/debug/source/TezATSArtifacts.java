@@ -73,7 +73,9 @@ public class TezATSArtifacts implements ArtifactSource {
       return;
     }
     for (int i = 0; i < node.size(); ++i) {
-      String logsUrl = node.get(i).path("otherinfo").path("completedLogsURL").textValue();
+      JsonNode entity = node.get(i).path("otherinfo");
+      // TODO(hjp): Check if there is inProgressLogsURL and try this out.
+      String logsUrl = entity.path("completedLogsURL").textValue();
       if (logsUrl == null) {
         continue;
       }
@@ -81,6 +83,10 @@ public class TezATSArtifacts implements ArtifactSource {
       if (matcher.matches()) {
         String containerId = matcher.group(1);
         String nodeId = matcher.group(2);
+        appLogs.addContainer(nodeId, containerId);
+      } else {
+        String containerId = entity.path("containerId").textValue();
+        String nodeId = entity.path("nodeId").textValue();
         appLogs.addContainer(nodeId, containerId);
       }
     }

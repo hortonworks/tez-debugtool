@@ -11,24 +11,24 @@ import org.apache.tez.tools.debug.framework.Params;
 
 import com.google.inject.Inject;
 
-public class LlapDeamonLogsArtifacts implements ArtifactSource {
+public class TezTasksLogsArtifacts implements ArtifactSource {
 
   private final AMArtifactsHelper helper;
 
   @Inject
-  public LlapDeamonLogsArtifacts(AMArtifactsHelper helper) {
+  public TezTasksLogsArtifacts(AMArtifactsHelper helper) {
     this.helper = helper;
   }
 
   @Override
   public boolean hasRequiredParams(Params params) {
-    return params.getAppType() != null && params.getAppType().equals("LLAP") &&
+    return params.getAppType() != null && params.getAppType().equals("TEZ") &&
         params.getTezTaskLogs().isFinishedLogs();
   }
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
-    return params.getTezTaskLogs().getLogArtifacts(helper, "LLAP/LOGS");
+    return params.getTezTaskLogs().getLogArtifacts(helper, "TEZ_TASKS/LOGS");
   }
 
   @Override
