@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.tez.tools.debug.AMArtifactsHelper;
 
 public class Params {
+  private String appType;
+
   // Tez information.
   private String tezDagId;
   private String tezAmAppId;
@@ -108,6 +110,14 @@ public class Params {
 
   public String getTezDagId() {
     return tezDagId;
+  }
+
+  public String getAppType() {
+    return appType;
+  }
+
+  public void setAppType(String appType) {
+    this.appType = appType;
   }
 
   public void setTezDagId(String tezDagId) {

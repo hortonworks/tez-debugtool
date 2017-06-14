@@ -46,23 +46,14 @@ public class SliderStatusArtifacts implements ArtifactSource {
 
       @Override
       public void downloadInto(Path path) throws IOException {
-        Process process;
-        try {
-          // Is the name always llap0? How do we get the name?
-          // Is there a way to get hive path from config?
-          process = new ProcessBuilder("hive", "--service", "llapstatus", "--name", "llap0")
-              .start();
-        } catch (IOException e) {
-          throw new IOException("Error execution hive --service llapstatus --name llap0, "
-              + "please check your path for hive and permissions for the user.", e);
-        }
+        // Is the name always llap0? How do we get the name?
+        // Is there a way to get hive path from config?
+        Process process = new ProcessBuilder("hive", "--service", "llapstatus", "--name", "llap0")
+            .start();
         try {
           Files.copy(process.getInputStream(), path);
         } finally {
           process.destroy();
-        }
-        if (process.isAlive()) {
-          // Warn the user that we have process leak.
         }
       }
     });
@@ -93,16 +84,12 @@ public class SliderStatusArtifacts implements ArtifactSource {
     JsonNode instances = tree.path("runningInstances");
     if (instances.isArray()) {
       Set<String> inst = new HashSet<>();
-      try {
       for (int i = 0; i < instances.size(); ++i) {
         String nodeUrl = instances.path(i).path("webUrl").textValue();
-        System.out.println("****** URL: " + instances.get(i));
         if (nodeUrl != null) {
           inst.add(nodeUrl);
         }
       }
-      } catch(Throwable e) {e.printStackTrace();}
-      System.out.println("***** Done with looping.");
       params.setSliderInstanceUrls(inst);
     }
   }

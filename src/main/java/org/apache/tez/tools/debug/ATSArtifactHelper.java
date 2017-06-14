@@ -45,20 +45,27 @@ public class ATSArtifactHelper {
     }
   }
 
-  public Artifact getEntityArtifact(String name, String entityType, String entityId)
-      throws URISyntaxException {
-    URIBuilder builder = new URIBuilder(atsAddress);
-    builder.setPath(ATS_PATH_PREFIX + entityType + "/" + entityId);
-    String url = builder.build().toString();
-    return new HttpArtifact(httpClient, name, url, false);
+  public Artifact getEntityArtifact(String name, String entityType, String entityId) {
+    try {
+      URIBuilder builder = new URIBuilder(atsAddress);
+      builder.setPath(ATS_PATH_PREFIX + entityType + "/" + entityId);
+      String url = builder.build().toString();
+      return new HttpArtifact(httpClient, name, url, false);
+    } catch (URISyntaxException e) {
+      throw new RuntimeException("Invalid atsAddress: " + atsAddress, e);
+    }
   }
 
   public Artifact getChildEntityArtifact(String name, String entityType, String rootEntityType,
-      String rootEntityId) throws URISyntaxException {
-    URIBuilder builder = new URIBuilder(atsAddress);
-    builder.setPath(ATS_PATH_PREFIX + entityType);
-    builder.setParameter("primaryFilter", rootEntityType + ":" + rootEntityId);
-    String url = builder.build().toString();
-    return new HttpArtifact(httpClient, name, url, false);
+      String rootEntityId) {
+    try {
+      URIBuilder builder = new URIBuilder(atsAddress);
+      builder.setPath(ATS_PATH_PREFIX + entityType);
+      builder.setParameter("primaryFilter", rootEntityType + ":" + rootEntityId);
+      String url = builder.build().toString();
+      return new HttpArtifact(httpClient, name, url, false);
+    } catch (URISyntaxException e) {
+      throw new RuntimeException("Invalid atsAddress: " + atsAddress, e);
+    }
   }
 }

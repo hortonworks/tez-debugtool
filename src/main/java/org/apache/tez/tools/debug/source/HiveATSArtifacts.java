@@ -2,7 +2,6 @@ package org.apache.tez.tools.debug.source;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -35,13 +34,8 @@ public class HiveATSArtifacts implements ArtifactSource {
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
-    try {
-      return ImmutableList.of(helper.getEntityArtifact("HIVE_QUERY", "HIVE_QUERY_ID",
-          params.getHiveQueryId()));
-    } catch (URISyntaxException e) {
-      e.printStackTrace();
-      return null;
-    }
+    return ImmutableList.of(helper.getEntityArtifact("HIVE_QUERY", "HIVE_QUERY_ID",
+        params.getHiveQueryId()));
   }
 
   @Override
@@ -52,21 +46,24 @@ public class HiveATSArtifacts implements ArtifactSource {
       if (node == null) {
         return;
       }
+      if (params.getAppType() == null) {
+        params.setAppType(node.path("primaryfilters").path("executionmode").path(0).textValue());
+      }
       JsonNode other = node.get("otherinfo");
       if (other == null) {
         return;
       }
       // Get and update dag id/hive query id.
       if (params.getTezAmAppId() == null) {
-        JsonNode appId = other.get("APP_ID");
-        if (appId != null && appId.isTextual()) {
-          params.setTezAmAppId(appId.asText());
+        String appId = other.path("APP_ID").textValue();
+        if (appId != null) {
+          params.setTezAmAppId(appId);
         }
       }
       if (params.getTezDagId() == null) {
-        JsonNode dagId = other.get("DAG_ID");
-        if (dagId != null && dagId.isTextual()) {
-          params.setTezDagId(dagId.asText());
+        String dagId = other.path("DAG_ID").textValue();
+        if (dagId != null) {
+          params.setTezDagId(dagId);
         }
       }
       ATSLog log = mapper.treeToValue(node, ATSLog.class);

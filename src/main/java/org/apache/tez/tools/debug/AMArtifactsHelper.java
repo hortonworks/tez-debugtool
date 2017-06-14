@@ -53,7 +53,7 @@ public class AMArtifactsHelper {
     if (nodeId != null) {
       logsListUrl += "?nm.id=" + nodeId;
     }
-    return new HttpArtifact(httpClient, name, logsListUrl, false);
+    return new HttpArtifact(httpClient, name, logsListUrl, true);
   }
 
   public Artifact getLogArtifact(String name, String containerId, String logFile, String nodeId) {
@@ -64,8 +64,7 @@ public class AMArtifactsHelper {
     return new HttpArtifact(httpClient, name, logUrl, false);
   }
 
-  public List<ContainerLogsInfo> parseContainerLogs(Path path)
-      throws IOException {
+  public List<ContainerLogsInfo> parseContainerLogs(Path path) throws IOException {
     TypeReference<List<ContainerLogsInfo>> typeRef = new TypeReference<List<ContainerLogsInfo>>(){};
     try {
       ObjectMapper mapper = new ObjectMapper();
@@ -75,6 +74,8 @@ public class AMArtifactsHelper {
       ObjectReader reader = mapper.reader(typeRef).withRootName("containerLogsInfo");
       return reader.readValue(Files.newInputStream(path));
     } catch (JsonProcessingException e) {
+      // We first try with unwrap root value, if that fails, try without it. The api returns both
+      // types.
       ObjectMapper mapper = new ObjectMapper();
       mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
       mapper.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);

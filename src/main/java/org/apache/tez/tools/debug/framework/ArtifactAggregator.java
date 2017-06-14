@@ -26,6 +26,7 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
@@ -34,22 +35,23 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 
 public class ArtifactAggregator implements AutoCloseable {
-  private final Configuration conf;
   private final ExecutorService service;
   private final Params params;
   private final CloseableHttpClient httpClient;
-  private final Injector injector;
   private final FileSystem zipfs;
   private final List<ArtifactSource> pendingSources;
   private final Map<Artifact, ArtifactSource> artifactSource;
 
-  public ArtifactAggregator(Configuration conf_, ExecutorService service, Params params_,
+  public ArtifactAggregator(final Configuration conf, ExecutorService service, Params params_,
       String zipFilePath, List<ArtifactSourceType> sourceTypes) throws IOException {
-    this.conf = conf_;
     this.service = service;
     this.params = params_;
     this.httpClient = HttpClients.createDefault();
-    this.injector = Guice.createInjector(new Module() {
+    this.artifactSource = new HashMap<>();
+    this.zipfs = FileSystems.newFileSystem(URI.create("jar:file:" + zipFilePath),
+        ImmutableMap.of("create", "true", "encoding", "UTF-8"));
+
+    Injector injector = Guice.createInjector(new Module() {
       @Override
       public void configure(Binder binder) {
         binder.bind(HttpClient.class).toInstance(httpClient);
@@ -57,17 +59,14 @@ public class ArtifactAggregator implements AutoCloseable {
         binder.bind(Params.class).toInstance(params);
       }
     });
-    this.zipfs = FileSystems.newFileSystem(URI.create("jar:file:" + zipFilePath),
-        ImmutableMap.of("create", "true", "encoding", "UTF-8"));
     this.pendingSources = new ArrayList<>(sourceTypes.size());
     for (ArtifactSourceType sourceType : sourceTypes) {
       pendingSources.add(sourceType.getSource(injector));
     }
-    this.artifactSource = new HashMap<>();
   }
 
-  public void aggregate() {
-    final Map<String, Exception> errors = new HashMap<>();
+  public void aggregate() throws IOException {
+    final Map<String, Throwable> errors = new HashMap<>();
     while (!pendingSources.isEmpty()) {
       List<Artifact> artifacts = collectDownloadableArtifacts();
       if (artifacts.isEmpty() && !pendingSources.isEmpty()) {
@@ -83,8 +82,8 @@ public class ArtifactAggregator implements AutoCloseable {
             try {
               artifact.downloadInto(path);
               artifactSource.get(artifact).updateParams(params, artifact, path);
-            } catch (IOException e) {
-              errors.put(artifact.getName(), e);
+            } catch (Throwable t) {
+              errors.put(artifact.getName(), t);
             } finally {
               if (artifact.isTemp()) {
                 try {
@@ -96,9 +95,8 @@ public class ArtifactAggregator implements AutoCloseable {
           }
         }));
       }
-      // Its important that we finish all futures in this stage, there are some cases where
-      // one stage download data required for next one in multiple threads. And we should ensure
-      // all are finished before we start another phase.
+      // Its important that we wait for all futures in this stage, there are some cases where all
+      // downloads/updates of one stage should finish before we start the next stage.
       for (Future<?> future : futures) {
         try {
           future.get();
@@ -106,22 +104,18 @@ public class ArtifactAggregator implements AutoCloseable {
           Thread.currentThread().interrupt();
           return;
         } catch (ExecutionException e) {
-          // ignore, this should not happen.
+          // ignore, this should not happen, we catch all throwable and serialize into error
         }
       }
     }
     writeErrors(errors);
   }
 
-  private Path getArtifactPath(String artifactName) {
+  private Path getArtifactPath(String artifactName) throws IOException {
     final Path path = zipfs.getPath("/", artifactName.split("/"));
     Path parent = path.getParent();
-    if (parent != null && Files.notExists(parent)) {
-      try {
-        Files.createDirectories(parent);
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
+    if (parent != null) {
+      Files.createDirectories(parent);
     }
     return path;
   }
@@ -155,31 +149,28 @@ public class ArtifactAggregator implements AutoCloseable {
     return artifacts;
   }
 
-  private boolean writeErrors(Map<String, Exception> errors) {
-    if (!errors.isEmpty()) {
-      Path path = zipfs.getPath("ERRORS");
-      OutputStream stream = null;
-      try {
-        stream = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW,
-            StandardOpenOption.WRITE);
-        Map<String, String> formattedError = new HashMap<>();
-        for (Entry<String, Exception> entry : errors.entrySet()) {
-          StringWriter writer = new StringWriter();
-          entry.getValue().printStackTrace(new PrintWriter(writer));
-          formattedError.put(entry.getKey(), writer.toString());
-        }
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(Include.NON_NULL);
-        objectMapper.writeValue(stream, formattedError);
-      } catch (IOException e) {
-        // LOG error here?
-        e.printStackTrace();
-        return false;
-      } finally {
-        // We should not close a stream from ZipFileSystem, I have no clue why.
-        // IOUtils.closeQuietly(stream);
-      }
+  private void writeErrors(Map<String, Throwable> errors) throws IOException {
+    if (errors.isEmpty()) {
+      return;
     }
-    return true;
+    Path path = zipfs.getPath("ERRORS");
+    OutputStream stream = null;
+    try {
+      stream = Files.newOutputStream(path, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+      ObjectMapper objectMapper = new ObjectMapper();
+      objectMapper.setSerializationInclusion(Include.NON_NULL);
+      JsonGenerator generator = objectMapper.getFactory().createGenerator(stream);
+      generator.writeStartObject();
+      for (Entry<String, Throwable> entry : errors.entrySet()) {
+        StringWriter writer = new StringWriter();
+        entry.getValue().printStackTrace(new PrintWriter(writer));
+        generator.writeStringField(entry.getKey(), writer.toString());
+      }
+      generator.writeEndObject();
+      generator.close();
+    } finally {
+      // We should not close a stream from ZipFileSystem, I have no clue why.
+      // IOUtils.closeQuietly(stream);
+    }
   }
 }

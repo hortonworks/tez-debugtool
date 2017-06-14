@@ -24,6 +24,8 @@ public enum ArtifactSourceType {
   TEZ_AM_LOGS(TezAMLogsArtifacts.class),
   TEZ_AM_JMX(DummyArtifacts.class),
   TEZ_AM_STACK(DummyArtifacts.class),
+  TEZ_TASK_LOGS_INFO(DummyArtifacts.class),
+  TEZ_TASK_LOGS(DummyArtifacts.class),
   LLAP_DEAMON_LOGS_INFO(LlapDeamonLogsListArtifacts.class),
   LLAP_DEAMON_LOGS(LlapDeamonLogsArtifacts.class),
   SLIDER_STATUS(SliderStatusArtifacts.class),

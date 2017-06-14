@@ -2,7 +2,6 @@ package org.apache.tez.tools.debug.source;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -17,7 +16,6 @@ import org.apache.tez.tools.debug.framework.ArtifactSource;
 import org.apache.tez.tools.debug.framework.Params;
 import org.apache.tez.tools.debug.framework.Params.AppLogs;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,33 +26,26 @@ public class TezATSArtifacts implements ArtifactSource {
 
   private final ATSArtifactHelper helper;
   private final ObjectMapper mapper;
-  private final Pattern logsPattern;
+  private static final Pattern logsPattern = Pattern.compile(
+      "^.*applicationhistory/containers/(.*?)/logs.*\\?nm.id=(.+:[\\d+]+).*$");
 
   @Inject
   public TezATSArtifacts(ATSArtifactHelper helper) {
     this.helper = helper;
     this.mapper = new ObjectMapper();
     mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    logsPattern = Pattern.compile(
-        "^.*applicationhistory/containers/(.*?)/logs.*\\?nm.id=(.+:[\\d+]+).*$");
   }
 
   @Override
   public List<Artifact> getArtifacts(Params params) {
     String dagId = params.getTezDagId();
-    try {
-      return ImmutableList.of(
-          helper.getEntityArtifact("TEZ_ATS/DAG", "TEZ_DAG_ID", dagId),
-          helper.getEntityArtifact("TEZ_ATS/DAG_EXTRAINFO", "TEZ_DAG_EXTRA_INFO", dagId),
-          helper.getChildEntityArtifact("TEZ_ATS/VERTEX", "TEZ_VERTEX_ID", "TEZ_DAG_ID", dagId),
-          helper.getChildEntityArtifact("TEZ_ATS/TASK", "TEZ_TASK_ID", "TEZ_DAG_ID", dagId),
-          helper.getChildEntityArtifact("TEZ_ATS/TASK_ATTEMPT", "TEZ_TASK_ATTEMPT_ID",
-              "TEZ_DAG_ID", dagId));
-    } catch (URISyntaxException e) {
-      // This should go back to user.
-      e.printStackTrace();
-      return null;
-    }
+    return ImmutableList.of(
+        helper.getEntityArtifact("TEZ_ATS/DAG", "TEZ_DAG_ID", dagId),
+        helper.getEntityArtifact("TEZ_ATS/DAG_EXTRAINFO", "TEZ_DAG_EXTRA_INFO", dagId),
+        helper.getChildEntityArtifact("TEZ_ATS/VERTEX", "TEZ_VERTEX_ID", "TEZ_DAG_ID", dagId),
+        helper.getChildEntityArtifact("TEZ_ATS/TASK", "TEZ_TASK_ID", "TEZ_DAG_ID", dagId),
+        helper.getChildEntityArtifact("TEZ_ATS/TASK_ATTEMPT", "TEZ_TASK_ATTEMPT_ID",
+            "TEZ_DAG_ID", dagId));
   }
 
   @Override
@@ -67,8 +58,7 @@ public class TezATSArtifacts implements ArtifactSource {
     }
   }
 
-  private void extractTaskContainers(Params params, Path path)
-      throws IOException, JsonProcessingException {
+  private void extractTaskContainers(Params params, Path path) throws IOException {
     AppLogs appLogs = params.getTezTaskLogs();
     if (appLogs.isFinishedContainers()) {
       return;
